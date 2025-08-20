@@ -8,11 +8,11 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 
-# Install pnpm globally first
-RUN npm install -g pnpm@latest
+# Install pnpm globally with retry logic
+RUN for i in 1 2 3; do npm install -g pnpm@latest && break || sleep 5; done
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies with retry logic
+RUN for i in 1 2 3; do pnpm install --frozen-lockfile && break || sleep 5; done
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -23,8 +23,8 @@ COPY . .
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Install pnpm globally and build
-RUN npm install -g pnpm@latest && pnpm build
+# Install pnpm globally and build with retry logic
+RUN for i in 1 2 3; do npm install -g pnpm@latest && break || sleep 5; done && pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
