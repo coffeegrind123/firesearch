@@ -45,12 +45,12 @@ export async function POST(request: NextRequest) {
       ...results
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Firesearch API] Search error:', error);
     
     return NextResponse.json(
       { 
-        error: error.message || 'Search failed',
+        error: error instanceof Error ? error.message : 'Search failed',
         success: false 
       },
       { status: 500 }

@@ -120,7 +120,7 @@ export class FirecrawlSimpleClient {
           try {
             const domain = new URL(item.href).hostname;
             favicon = `https://${domain}/favicon.ico`;
-          } catch (e) {
+          } catch {
             // Ignore invalid URLs
           }
         }

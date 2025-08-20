@@ -212,14 +212,14 @@ export class LangGraphSearchEngine {
     };
     
     // Add baseURL configuration for custom endpoints
-    if (baseURL) {
-      (commonConfig as any).configuration = { baseURL };
-    }
+    const configWithEndpoint = baseURL 
+      ? { ...commonConfig, configuration: { baseURL } }
+      : commonConfig;
     
-    this.llm = new ChatOpenAI(commonConfig);
+    this.llm = new ChatOpenAI(configWithEndpoint);
     
     this.streamingLlm = new ChatOpenAI({
-      ...commonConfig,
+      ...configWithEndpoint,
       modelName: qualityModel,
       streaming: true,
     });
