@@ -29,14 +29,33 @@ export async function POST(request: NextRequest) {
       customEndpoint: customEndpoint
     });
 
-    // Perform intelligent search
-    const results = await searchEngine.intelligentSearch(
+    // Collect results from the event-based search
+    const results = {
+      sources: [] as any[],
+      subQueries: [] as any[],
+      totalSources: 0,
+      finalAnswer: '',
+      followUpQuestions: [] as string[]
+    };
+
+    // Perform search with event collection
+    await searchEngine.search(
       query,
-      (message) => {
-        // Progress callback - in a real implementation you might want to use WebSockets
-        console.log(`[Firesearch API] ${message}`);
-      },
-      options
+      (event) => {
+        console.log(`[Firesearch API] Event:`, event.type);
+        
+        // Collect results from events
+        if (event.type === 'found') {
+          results.sources.push(...event.sources);
+          results.totalSources = event.sources.length;
+        }
+        if (event.type === 'final-result') {
+          results.finalAnswer = event.content;
+          results.sources = event.sources;
+          results.followUpQuestions = event.followUpQuestions || [];
+          results.totalSources = event.sources.length;
+        }
+      }
     );
 
     return NextResponse.json({
