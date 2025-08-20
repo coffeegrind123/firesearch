@@ -168,27 +168,60 @@ export class LangGraphSearchEngine {
   private streamingLlm: ChatOpenAI;
   private checkpointer?: MemorySaver;
 
-  constructor(firecrawl: FirecrawlClient, options?: { enableCheckpointing?: boolean }) {
+  constructor(
+    firecrawl: FirecrawlClient, 
+    options?: { 
+      enableCheckpointing?: boolean;
+      customEndpoint?: {
+        url: string;
+        apiKey: string;
+        model: string;
+      };
+    }
+  ) {
     this.firecrawl = firecrawl;
     this.contextProcessor = new ContextProcessor();
     
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is not set');
+    // Use custom endpoint if provided, otherwise fall back to environment variables
+    let apiKey: string;
+    let baseURL: string | undefined;
+    let fastModel: string;
+    let qualityModel: string;
+    
+    if (options?.customEndpoint) {
+      console.log('[LangGraphSearchEngine] Using custom endpoint:', options.customEndpoint.url);
+      apiKey = options.customEndpoint.apiKey || 'sk-placeholder';
+      baseURL = options.customEndpoint.url;
+      fastModel = options.customEndpoint.model; // Use same model for both fast and quality
+      qualityModel = options.customEndpoint.model;
+    } else {
+      console.log('[LangGraphSearchEngine] Using OpenAI environment variables');
+      apiKey = process.env.OPENAI_API_KEY || '';
+      if (!apiKey) {
+        throw new Error('OPENAI_API_KEY environment variable is not set and no custom endpoint provided');
+      }
+      fastModel = MODEL_CONFIG.FAST_MODEL;
+      qualityModel = MODEL_CONFIG.QUALITY_MODEL;
     }
     
     // Initialize LangChain models
-    this.llm = new ChatOpenAI({
-      modelName: MODEL_CONFIG.FAST_MODEL,
+    const commonConfig = {
+      modelName: fastModel,
       temperature: MODEL_CONFIG.TEMPERATURE,
       openAIApiKey: apiKey,
-    });
+    };
+    
+    // Add baseURL configuration for custom endpoints
+    if (baseURL) {
+      (commonConfig as any).configuration = { baseURL };
+    }
+    
+    this.llm = new ChatOpenAI(commonConfig);
     
     this.streamingLlm = new ChatOpenAI({
-      modelName: MODEL_CONFIG.QUALITY_MODEL,
-      temperature: MODEL_CONFIG.TEMPERATURE,
+      ...commonConfig,
+      modelName: qualityModel,
       streaming: true,
-      openAIApiKey: apiKey,
     });
 
     // Enable checkpointing if requested
