@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LangGraphSearchEngine } from '../../../lib/langgraph-search-engine';
+import { LangGraphSearchEngine, Source } from '../../../lib/langgraph-search-engine';
 import { FirecrawlClient } from '../../../lib/firecrawl';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { query, options = {}, customEndpoint } = body;
+    const { query, customEndpoint } = body;
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
 
     // Collect results from the event-based search
     const results = {
-      sources: [] as any[],
-      subQueries: [] as any[],
+      sources: [] as Source[],
+      subQueries: [] as string[],
       totalSources: 0,
       finalAnswer: '',
       followUpQuestions: [] as string[]

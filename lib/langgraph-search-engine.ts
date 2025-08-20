@@ -167,6 +167,15 @@ export class LangGraphSearchEngine {
   private llm: ChatOpenAI;
   private streamingLlm: ChatOpenAI;
   private checkpointer?: MemorySaver;
+  private options?: { 
+    enableCheckpointing?: boolean;
+    customEndpoint?: {
+      url: string;
+      apiKey: string;
+      model: string;
+    };
+  };
+  private apiKey: string;
 
   constructor(
     firecrawl: FirecrawlClient, 
@@ -180,6 +189,7 @@ export class LangGraphSearchEngine {
     }
   ) {
     this.firecrawl = firecrawl;
+    this.options = options;
     this.contextProcessor = new ContextProcessor();
     
     // Use custom endpoint if provided, otherwise fall back to environment variables
@@ -198,11 +208,16 @@ export class LangGraphSearchEngine {
       console.log('[LangGraphSearchEngine] Using OpenAI environment variables');
       apiKey = process.env.OPENAI_API_KEY || '';
       if (!apiKey) {
-        throw new Error('OPENAI_API_KEY environment variable is not set and no custom endpoint provided');
+        console.warn('[LangGraphSearchEngine] OPENAI_API_KEY environment variable is not set and no custom endpoint provided - search will fail if attempted');
+        // Don't throw error here, allow lazy initialization for frontend pages
+        apiKey = '';
       }
       fastModel = MODEL_CONFIG.FAST_MODEL;
       qualityModel = MODEL_CONFIG.QUALITY_MODEL;
     }
+    
+    // Store API key as instance variable
+    this.apiKey = apiKey;
     
     // Initialize LangChain models
     const commonConfig = {
@@ -924,6 +939,16 @@ export class LangGraphSearchEngine {
     context?: { query: string; response: string }[],
     checkpointId?: string
   ): Promise<void> {
+    // Validate configuration before starting search
+    if (!this.options?.customEndpoint && !this.apiKey) {
+      onEvent({
+        type: 'error',
+        error: 'OPENAI_API_KEY environment variable is not set and no custom endpoint provided',
+        errorType: 'unknown'
+      });
+      return;
+    }
+    
     try {
       const initialState: SearchState = {
         query,

@@ -9,16 +9,6 @@ import { MarkdownRenderer } from './markdown-renderer';
 import { CitationTooltip } from './citation-tooltip';
 import Image from 'next/image';
 import { getFaviconUrl, getDefaultFavicon, markFaviconFailed } from '@/lib/favicon-utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 
 const SUGGESTED_QUERIES = [
   "Who are the founders of Firecrawl?",
@@ -194,11 +184,6 @@ export function Chat() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasShownSuggestions, setHasShownSuggestions] = useState(false);
-  const [firecrawlApiKey, setFirecrawlApiKey] = useState<string>('');
-  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
-  const [, setIsCheckingEnv] = useState<boolean>(true);
-  const [pendingQuery, setPendingQuery] = useState<string>('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSelectSuggestion = (suggestion: string) => {
@@ -208,26 +193,7 @@ export function Chat() {
 
   // Check for environment variables on mount
   useEffect(() => {
-    const checkEnvironment = async () => {
-      setIsCheckingEnv(true);
-      try {
-        const response = await fetch('/api/check-env');
-        const data = await response.json();
-        
-        if (data.environmentStatus) {
-          // Only check for Firecrawl API key since we can pass it from frontend
-          // OpenAI and Anthropic keys must be in environment
-          setHasApiKey(data.environmentStatus.FIRECRAWL_API_KEY);
-        }
-      } catch (error) {
-        console.error('Failed to check environment:', error);
-        setHasApiKey(false);
-      } finally {
-        setIsCheckingEnv(false);
-      }
-    };
-
-    checkEnvironment();
+    // Environment setup not needed - using firecrawl-simple backend
   }, []);
 
   // Auto-scroll to bottom when messages change
@@ -237,19 +203,6 @@ export function Chat() {
     }
   }, [messages]);
 
-  const saveApiKey = () => {
-    if (firecrawlApiKey.trim()) {
-      setHasApiKey(true);
-      setShowApiKeyModal(false);
-      toast.success('API key saved! Starting your search...');
-      
-      // Continue with the pending query
-      if (pendingQuery) {
-        performSearch(pendingQuery);
-        setPendingQuery('');
-      }
-    }
-  };
 
   // Listen for follow-up question events
   useEffect(() => {
@@ -307,7 +260,7 @@ export function Chat() {
       
       // Get search stream with context
       // Pass the API key only if user provided one, otherwise let server use env var
-      const { stream } = await search(query, conversationContext, firecrawlApiKey || undefined);
+      const { stream } = await search(query, conversationContext);
       let finalContent = '';
       
       // Read stream and update events
@@ -427,10 +380,7 @@ export function Chat() {
             <p className="text-red-600 dark:text-red-400 text-sm mt-1">{errorMessage}</p>
             {(errorMessage.includes('API key') || errorMessage.includes('OPENAI_API_KEY')) && (
               <p className="text-red-600 dark:text-red-400 text-sm mt-2">
-                Please ensure all required API keys are set in your environment variables:
-                <br />• OPENAI_API_KEY (for GPT-4o)
-                <br />• ANTHROPIC_API_KEY (optional, for Claude)
-                <br />• FIRECRAWL_API_KEY (can be provided via UI)
+                This service is intended for use as a backend API. Please configure your application to pass custom endpoint configuration when making search requests.
               </p>
             )}
           </div>
@@ -450,22 +400,6 @@ export function Chat() {
     const userMessage = input;
     setInput('');
 
-    // Check if we have API key
-    if (!hasApiKey) {
-      // Store the query and show modal
-      setPendingQuery(userMessage);
-      setShowApiKeyModal(true);
-      
-      // Still add user message to show what they asked
-      const userMsgId = Date.now().toString();
-      setMessages(prev => [...prev, {
-        id: userMsgId,
-        role: 'user',
-        content: userMessage,
-        isSearch: true
-      }]);
-      return;
-    }
 
     // Add user message
     const userMsgId = Date.now().toString();
@@ -652,56 +586,6 @@ export function Chat() {
         </>
       )}
 
-      {/* API Key Modal */}
-      <Dialog open={showApiKeyModal} onOpenChange={setShowApiKeyModal}>
-        <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-          <DialogHeader>
-            <DialogTitle>Firecrawl API Key Required</DialogTitle>
-            <DialogDescription>
-              To use Firesearch, you need a Firecrawl API key. You can get one for free.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Button
-                onClick={() => window.open('https://www.firecrawl.dev/app/api-keys', '_blank')}
-                className="w-full"
-                variant="code"
-              >
-                Get your free API key from Firecrawl →
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="apiKey" className="text-sm font-medium">
-                Enter your API key
-              </label>
-              <Input
-                id="apiKey"
-                type="password"
-                value={firecrawlApiKey}
-                onChange={(e) => setFirecrawlApiKey(e.target.value)}
-                placeholder="fc-..."
-                className="w-full"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button
-              variant="code"
-              onClick={() => setShowApiKeyModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="orange"
-              onClick={saveApiKey}
-              disabled={!firecrawlApiKey.trim()}
-            >
-              Save and Continue
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

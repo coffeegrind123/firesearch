@@ -8,11 +8,14 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 
-# Install pnpm globally with retry logic
-RUN for i in 1 2 3; do npm install -g pnpm@latest && break || sleep 5; done
+# Install specific pnpm version with retry logic to avoid update warnings
+RUN for i in 1 2 3; do npm install -g pnpm@10.15.0 && break || sleep 5; done
 
 # Install dependencies with retry logic
-RUN for i in 1 2 3; do pnpm install --frozen-lockfile && break || sleep 5; done
+RUN for i in 1 2 3; do corepack use pnpm@10.15.0 && pnpm install --frozen-lockfile && break || sleep 5; done
+
+# Approve build scripts to avoid warnings
+RUN pnpm approve-builds
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -23,8 +26,8 @@ COPY . .
 # Build the application
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Install pnpm globally and build with retry logic
-RUN for i in 1 2 3; do npm install -g pnpm@latest && break || sleep 5; done && pnpm build
+# Install specific pnpm version and build with retry logic
+RUN for i in 1 2 3; do npm install -g pnpm@10.15.0 && break || sleep 5; done && corepack use pnpm@10.15.0 && pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
