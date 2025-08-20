@@ -11,11 +11,8 @@ COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 # Install specific pnpm version with retry logic to avoid update warnings
 RUN for i in 1 2 3; do npm install -g pnpm@10.15.0 && break || sleep 5; done
 
-# Install dependencies with retry logic
-RUN for i in 1 2 3; do corepack use pnpm@10.15.0 && pnpm install --frozen-lockfile && break || sleep 5; done
-
-# Approve build scripts to avoid warnings
-RUN pnpm approve-builds
+# Install dependencies with retry logic and approve builds
+RUN for i in 1 2 3; do corepack use pnpm@10.15.0 && pnpm install --frozen-lockfile && pnpm approve-builds && break || sleep 5; done
 
 # Rebuild the source code only when needed
 FROM base AS builder
